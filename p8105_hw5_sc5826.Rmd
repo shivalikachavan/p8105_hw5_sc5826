@@ -10,7 +10,7 @@ library(tidyverse)
 source("source/bday_sim.R")
 
 knitr::opts_chunk$set(
-  fig.width = 6,
+  fig.width = 8,
   fig.asp = .6,
   out.width = "90%"
 )
