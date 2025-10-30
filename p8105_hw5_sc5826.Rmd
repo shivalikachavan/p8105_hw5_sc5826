@@ -7,6 +7,7 @@ output: github_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+source("source/bday_sim.R")
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -27,42 +28,33 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Problem 1
 ```{r}
-birthdays = sample(1:365, 50, replace = TRUE)
-
-repeated_bday = length(unique(birthdays)) < 50
-
-repeated_bday
-```
-
-```{r}
-bday_sim = function(n_room){
-  
-  birthdays = sample(1:365, n_room, replace = TRUE)
-
-  repeated_bday = length(unique(birthdays)) < n_room
-  
-  repeated_bday
-}
-```
-
-
-
-```{r}
 bday_sim_results = 
   expand_grid(
-    bdays = 1:60,
-    iter = 1:2500
+    group_size = 2:50,
+    iter = 1:10000
   ) |> 
   mutate(
-    results = map_lgl(bdays, bday_sim)
+    results = map_lgl(group_size, bday_sim)
   ) |> 
-  group_by(bdays) |> 
+  group_by(group_size) |> 
   summarize(
-    prob = mean(results)
-  ) 
-
-bday_sim_results|> 
-  ggplot(aes(x = bdays, y = prob)) +
-  geom_point() + geom_line()
+    probability = mean(results)
+  )
 ```
+
+
+```{r}
+bday_sim_results|> 
+  ggplot(aes(x = group_size, y = probability)) +
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = 0.5, color = "red") + 
+  xlab("Group Size") +
+  ylab("Probability") + 
+  labs(
+    title = "Probability of 2+ people sharing a birthday based on group size"
+  ) 
+```
+
+The resulting curve is S-shaped, where the probability begins to taper around a group size of 50. At a group size of 2, the probability of at least 2 people sharing a birthday is `r round(pull(filter(bday_sim_results, group_size == 2), probability), digits = 3)`. At a group size of 50, the probability of at least 2 people sharing a birthday is `r round(pull(filter(bday_sim_results, group_size == 50), probability), digits = 3)`. To have more than a 50% probability of at least 2 people sharing a birthday, the group size needs to be at least `r min(pull(filter(bday_sim_results, probability > 0.5), group_size))`. 
 
