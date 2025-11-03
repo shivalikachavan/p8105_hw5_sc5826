@@ -8,6 +8,7 @@ output: github_document
 ```{r setup, include=FALSE}
 library(tidyverse)
 source("source/bday_sim.R")
+source("source/normal_distribution_sim.R")
 
 knitr::opts_chunk$set(
   fig.width = 8,
@@ -16,18 +17,10 @@ knitr::opts_chunk$set(
 )
 
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
-
-options(
-  ggplot2.continuous.colour = "viridis",
-  ggplot2.continuous.fill = "viridis"
-)
-
-scale_colour_discrete = scale_colour_viridis_d
-scale_fill_discrete = scale_fill_viridis_d
 ```
 
 ## Problem 1
-```{r}
+```{r collapse = TRUE}
 bday_sim_results = 
   expand_grid(
     group_size = 2:50,
@@ -40,10 +33,12 @@ bday_sim_results =
   summarize(
     probability = mean(results)
   )
+
+bday_sim_results
 ```
 
 
-```{r}
+```{r collapse = TRUE}
 bday_sim_results|> 
   ggplot(aes(x = group_size, y = probability)) +
   geom_point() + 
@@ -57,4 +52,95 @@ bday_sim_results|>
 ```
 
 The resulting curve is S-shaped, where the probability begins to taper around a group size of 50. At a group size of 2, the probability of at least 2 people sharing a birthday is `r round(pull(filter(bday_sim_results, group_size == 2), probability), digits = 3)`. At a group size of 50, the probability of at least 2 people sharing a birthday is `r round(pull(filter(bday_sim_results, group_size == 50), probability), digits = 3)`. To have more than a 50% probability of at least 2 people sharing a birthday, the group size needs to be at least `r min(pull(filter(bday_sim_results, probability > 0.5), group_size))`. 
+
+## Problem 2
+Setting design parameters
+```{r collapse = TRUE}
+n = 30
+sigma = 5
+mu = 0
+n_datasets = 5000
+alpha = 0.05
+```
+
+Running simulation for 𝜇 = `r mu`:
+```{r collapse = TRUE}
+normal_dist_sim_mu_0 = 
+  expand_grid(
+    mean = mu,
+    iter = 1:n_datasets
+  ) |> 
+  mutate(
+    results = map(mean, normal_distribution_sim)
+  ) |> 
+  unnest(results)
+normal_dist_sim_mu_0
+```
+
+Repeating simulation for 𝜇 in {1, 2, 3, 4, 5, 6}:
+```{r collapse = TRUE}
+normal_dist_sim = 
+  expand_grid(
+    mean = 1:6,
+    iter = 1:n_datasets
+  ) |> 
+  mutate(
+    results = map(mean, normal_distribution_sim)
+  ) |> 
+  unnest(results)
+normal_dist_sim
+```
+
+Plotting effect size vs. power
+```{r collapse = TRUE}
+normal_dist_sim |> 
+  group_by(mean) |> 
+  summarize(
+    power = sum(p.value < alpha) / n()
+  ) |> 
+  ggplot(aes(x = mean, y = power)) + 
+  geom_point() +
+  geom_line() + 
+  xlab("True Mean (Effect Size)") + 
+  ylab("Power") + 
+  labs(
+    title = "Effect Size vs. Power"
+  ) 
+```
+
+There is an overall positive correlation between effect size and power. When effect sizes are very small (< 2), power is low. This means the null hypothesis (𝜇 = 0) is failing to be rejected more often. At larger effect sizes (> 4), power is nearly 1. This means the null hypothesis (𝜇 = 0) is being rejected nearly every time. 
+
+```{r collapse = TRUE}
+avg_estimates = 
+  normal_dist_sim |> 
+  group_by(mean) |> 
+  summarize(avg_mu_hat = mean(mu_hat), n = n()) |> 
+  mutate(estimates_source = "All Samples")
+
+avg_estimates_null_rejected = normal_dist_sim |> 
+  filter(p.value < 0.05) |> 
+  group_by(mean) |> 
+  summarize(avg_mu_hat = mean(mu_hat), n = n()) |> 
+  mutate(estimates_source = "Filtered Samples (P < 0.05)")
+
+rbind(avg_estimates, avg_estimates_null_rejected) |> 
+  ggplot(aes(x = mean, y = avg_mu_hat, color = estimates_source)) + 
+  geom_point() + 
+  xlab("True Mean") + 
+  ylab("Average Estimate of the Mean") + 
+  labs(
+    color = "Source of Average Estimate"
+  )
+```
+
+The sample average of mû across tests for which the null is rejected is only approximately equal to the true value of 𝜇 at larger effect sizes (> 4). These larger effect sizes are also the ones at which power is nearly 1. As seen in the table below, as effect size increases, more tests result in rejecting the null hypothesis. Filtering for the tests where the p-value < 0.05, means that we are only selecting samples that are very extreme (since p-value means the probability of seeing a result as extreme or more extreme than the result). When there is low power and a small effect size, many tests will fail to reject the null hypothesis, even if the data set is correctly estimating the true mean. This is also seen in the table below, where there is a larger difference between "avg_mu_hat_All Samples" and "avg_mu_hat_Filtered Samples (P < 0.05)" at smaller effect sizes. 
+
+```{r collapse = TRUE}
+rbind(avg_estimates, avg_estimates_null_rejected) |> 
+  pivot_wider(
+    names_from = estimates_source,
+    values_from = c(avg_mu_hat, n)
+  ) |> 
+  knitr::kable()
+```
 
