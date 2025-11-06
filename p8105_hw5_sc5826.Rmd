@@ -63,7 +63,7 @@ n_datasets = 5000
 alpha = 0.05
 ```
 
-Running simulation for 𝜇 = `r mu`:
+Running simulation for `mu` = `r mu`:
 ```{r collapse = TRUE}
 normal_dist_sim_mu_0 = 
   expand_grid(
@@ -77,7 +77,7 @@ normal_dist_sim_mu_0 =
 normal_dist_sim_mu_0
 ```
 
-Repeating simulation for 𝜇 in {1, 2, 3, 4, 5, 6}:
+Repeating simulation for `mu` in {1, 2, 3, 4, 5, 6}:
 ```{r collapse = TRUE}
 normal_dist_sim = 
   expand_grid(
@@ -108,7 +108,7 @@ normal_dist_sim |>
   ) 
 ```
 
-There is an overall positive correlation between effect size and power. When effect sizes are very small (< 2), power is low. This means the null hypothesis (𝜇 = 0) is failing to be rejected more often. At larger effect sizes (> 4), power is nearly 1. This means the null hypothesis (𝜇 = 0) is being rejected nearly every time. 
+There is an overall positive correlation between effect size and power. When effect sizes are very small (< 2), power is low. This means the null hypothesis (`mu` = 0) is failing to be rejected more often. At larger effect sizes (> 4), power is nearly 1. This means the null hypothesis (`mu` = 0) is being rejected nearly every time. 
 
 ```{r collapse = TRUE}
 avg_estimates = 
@@ -133,7 +133,7 @@ rbind(avg_estimates, avg_estimates_null_rejected) |>
   )
 ```
 
-The sample average of mû across tests for which the null is rejected is only approximately equal to the true value of 𝜇 at larger effect sizes (> 4). These larger effect sizes are also the ones at which power is nearly 1. As seen in the table below, as effect size increases, more tests result in rejecting the null hypothesis. Filtering for the tests where the p-value < 0.05, means that we are only selecting samples that are very extreme (since p-value means the probability of seeing a result as extreme or more extreme than the result). When there is low power and a small effect size, many tests will fail to reject the null hypothesis, even if the data set is correctly estimating the true mean. This is also seen in the table below, where there is a larger difference between "avg_mu_hat_All Samples" and "avg_mu_hat_Filtered Samples (P < 0.05)" at smaller effect sizes. 
+The sample average of `mu_hat` across tests for which the null is rejected is only approximately equal to the true value of `mu` at larger effect sizes (> 4). These larger effect sizes are also the ones at which power is nearly 1. As seen in the table below, as effect size increases, more tests result in rejecting the null hypothesis. Filtering for the tests where the p-value < 0.05, means that we are only selecting samples that are very extreme (since p-value means the probability of seeing a result as extreme or more extreme than the result). When there is low power and a small effect size, many tests will fail to reject the null hypothesis, even if the data set is correctly estimating the true mean. This is also seen in the table below, where there is a larger difference between "avg_mu_hat_All Samples" and "avg_mu_hat_Filtered Samples (P < 0.05)" at smaller effect sizes. 
 
 ```{r collapse = TRUE}
 rbind(avg_estimates, avg_estimates_null_rejected) |> 
@@ -194,7 +194,7 @@ prop_test_unsolved_homicides_result |>
 ```{r collapse = TRUE}
 prop_tests_results = 
   homicide_data |> 
-  group_by(city_state,) |> 
+  group_by(city_state) |> 
   summarize(
     num_unsolved_homicides = sum(disposition != "Closed by arrest"),
     num_homicides = n()
@@ -211,18 +211,17 @@ prop_tests_results |>
 ```
 
 
-```{r}
+```{r fig.asp = 1}
 prop_tests_results |> 
   mutate(city_state = fct_reorder(city_state, estimate)) |> 
-  ggplot(aes(x = city_state, y = estimate)) + 
+  ggplot(aes(y = city_state, x = estimate)) + 
   geom_point() + 
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
-  theme(
-    axis.text.x = element_text(angle=45, hjust=1)
-  ) +
-  xlab("City, State") +
-  ylab("Proportion with Confidence Intervals") + 
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high)) +
+  xlim(0, 1) + 
+  ylab("City, State") +
+  xlab("Proportion Estimate with Confidence Intervals") + 
   labs(
-    title = "Proportion of Unsolved Homicides - July to December 2020"
+    title = "Proportion of Unsolved Homicides - July to December 2020",
+    caption = "Tulsa, AL only has 1 observation"
   )
 ```
