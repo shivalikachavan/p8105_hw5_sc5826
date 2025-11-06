@@ -144,3 +144,85 @@ rbind(avg_estimates, avg_estimates_null_rejected) |>
   knitr::kable()
 ```
 
+## Problem 3
+
+```{r}
+homicide_data = read.csv("./data/homicide-data.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    reported_date = as.Date(as.character(reported_date), format = "%y%m%d")
+  )
+```
+
+There are `r nrow(homicide_data)` observations in the `homicide_data` data set from the Washington Post. Each homicide is noted by a unique identifier `uid`. These homicides range from `r format(min(homicide_data$reported_date, na.rm = TRUE), "%B %d, %Y")` to `r format(max(homicide_data$reported_date, na.rm = TRUE), "%B %d, %Y")`, though about `r 100*round(sum(is.na(pull(homicide_data, reported_date)))/length(pull(homicide_data, reported_date)), digits = 3)`% of reported homicides have no `reported_date`. In most homicides, there is information about the homicide victim like the name (`last` and `first`) and demographic (`race`, `age`, and`sex`), the location of the homicide (`city` and `state` as well as `lat` and `long`), and disposition of the case (`Closed without arrest`,  `Closed by arrest`, or `Open/No arrest`). 
+
+```{r}
+homicide_data = 
+  homicide_data |> 
+  mutate(
+    city_state = paste0(city, ", ", state)
+  )
+```
+
+```{r}
+homicide_data |> 
+  filter(disposition != "Closed by arrest") |> 
+  group_by(city_state) |> 
+  summarize(unsolved_homicides = n()) |> 
+  knitr::kable()
+```
+
+```{r collapse = TRUE}
+prop_test_unsolved_homicides_result = 
+  homicide_data |> 
+  filter(city_state == "Baltimore, MD") |> 
+  summarize(
+    num_unsolved_homicides = sum(disposition != "Closed by arrest"),
+    num_homicides = n()
+  ) |> 
+  with(prop.test(x = num_unsolved_homicides, n = num_homicides))
+
+prop_test_unsolved_homicides_result
+
+prop_test_unsolved_homicides_result |> 
+  broom::tidy() |> 
+  select(estimate, conf.low, conf.high) |> 
+  knitr::kable()
+```
+
+
+```{r collapse = TRUE}
+prop_tests_results = 
+  homicide_data |> 
+  group_by(city_state,) |> 
+  summarize(
+    num_unsolved_homicides = sum(disposition != "Closed by arrest"),
+    num_homicides = n()
+  ) |> 
+  mutate(
+    prop_test = map2(num_unsolved_homicides, num_homicides, prop.test),
+    results = map(prop_test, broom::tidy)
+  ) |> 
+  unnest(results) |> 
+  select(city_state, estimate, conf.low, conf.high)
+  
+prop_tests_results |> 
+  knitr::kable(digits = 3)
+```
+
+
+```{r}
+prop_tests_results |> 
+  mutate(city_state = fct_reorder(city_state, estimate)) |> 
+  ggplot(aes(x = city_state, y = estimate)) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(
+    axis.text.x = element_text(angle=45, hjust=1)
+  ) +
+  xlab("City, State") +
+  ylab("Proportion with Confidence Intervals") + 
+  labs(
+    title = "Proportion of Unsolved Homicides - July to December 2020"
+  )
+```
